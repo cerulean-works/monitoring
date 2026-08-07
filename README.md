@@ -13,13 +13,26 @@ A Docker Compose stack for monitoring host and GPU metrics using **Prometheus**,
 
 *Note: Services run in `network_mode: host`.*
 
+## Prerequisites
+
+Before running the stack, ensure your system meets the following requirements:
+
+1. **NVIDIA GPU & CUDA Driver**: A supported NVIDIA GPU with installed proprietary NVIDIA drivers.
+2. **Docker & Docker Compose**: Installed and running daemon.
+3. **NVIDIA Container Toolkit**: Required by `dcgm-exporter` to access GPU devices inside containers.
+   - Installation guide: [NVIDIA Container Toolkit Docs](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+
+### Verification Commands
+
+```bash
+# 1. Verify GPU & Driver on host
+nvidia-smi
+
+# 2. Verify NVIDIA Container Toolkit / CUDA container support
+docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
+```
+
 ## Quick Start
-
-### Prerequisites
-- Docker & Docker Compose
-- NVIDIA GPU Driver & NVIDIA Container Toolkit
-
-### Commands
 
 ```bash
 # Start stack
