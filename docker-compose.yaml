@@ -40,4 +40,6 @@ services:
 
 volumes:
   prometheus-data:
+    name: prometheus-data
   grafana-storage:
+    name: grafana-storage
