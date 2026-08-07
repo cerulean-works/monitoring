@@ -1,0 +1,43 @@
+services:
+  dcgm-exporter:
+    container_name: dcgm-exporter
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:2.1.4-2.3.1-ubuntu20.04
+    network_mode: host
+    cap_add:
+      - SYS_ADMIN
+    command:
+      - "-f"
+      - "/etc/dcgm-exporter/dcp-metrics-included.csv"
+      - "-c"
+      - "1000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    restart: unless-stopped
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    network_mode: host
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    network_mode: host
+    environment:
+      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-storage:
