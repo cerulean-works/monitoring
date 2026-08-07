@@ -19,6 +19,22 @@ services:
               capabilities: [ gpu ]
     restart: unless-stopped
 
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:latest
+    network_mode: host
+    pid: host
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    restart: unless-stopped
+
   prometheus:
     container_name: prometheus
     image: prom/prometheus
