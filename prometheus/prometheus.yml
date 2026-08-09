@@ -30,6 +30,13 @@ scrape_configs:
       - targets:
           - "dcgm-exporter:9400"
 
+  - job_name: "grafana"
+    metrics_path: "/metrics"
+    scrape_interval: 1s
+    static_configs:
+      - targets:
+          - "grafana:3000"
+
   - job_name: 'vllm'
     metrics_path: '/metrics'
     scrape_interval: 1s

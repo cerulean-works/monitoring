@@ -113,7 +113,7 @@ docker compose logs alloy loki
 ## Grafana Startup Notes & Optimizations
 
 ### Why Initial Startup Takes Time
-On the initial start of the Docker stack or after running `docker compose down -v` (which removes persistent volumes), Grafana takes approximately 5–15 seconds to complete its initial setup:
+On the initial start of the Docker stack or after running `docker compose down -v` (which removes persistent volumes), Grafana can take a relatively long time to complete its initial setup. The exact duration depends on host and storage performance:
 1. **SQLite Database Initialization & Migrations**: Creating initial database schemas and executing migrations in `grafana.db`.
 2. **Automatic Provisioning**: Scanning and importing provisioned data sources (Prometheus) and JSON dashboards.
 3. **Service Initialization**: Starting the alerting engine, plugin loader, and HTTP server.
@@ -128,7 +128,11 @@ To accelerate Grafana's startup process and provide status visibility, the follo
    - Monitored via `/api/health`. Check status via `docker compose ps`:
      - `Up (health: starting)`: Initializing database and services.
      - `Up (healthy)`: Ready to accept requests at `http://localhost:3000`.
-3. **Data Persistence**:
+3. **Prometheus Startup Visibility**:
+   - Prometheus scrapes Grafana's `/metrics` endpoint every second through the `grafana` job.
+   - Open `http://localhost:9090/graph` and query `up{job="grafana"}`. A value of `0` means Grafana is not ready or unreachable; `1` confirms that Grafana has finished starting and is responding to Prometheus.
+
+4. **Data Persistence**:
    - Stop the stack using `docker compose down` (**avoid using `-v`**). Subsequent launches reuse the initialized database and reach readiness in just a few seconds.
 
 ## Structure

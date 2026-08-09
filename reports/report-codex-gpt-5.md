@@ -119,3 +119,21 @@
 
 ### Issues & Blockers
 - No unresolved repository-format blocker remains. The unsupported worktree configuration extension is no longer present.
+
+## [2026-08-09 17:32] Task Record
+
+### Task Description
+- Add Grafana health visibility to Prometheus with a one-second check interval and document how to observe slow initial Grafana startup.
+
+### Actions Taken
+- Modified `prometheus/prometheus.yml` to add a `grafana` scrape job targeting `grafana:3000/metrics` every second.
+- Modified `README.md` to explain that initial Grafana startup duration varies and can be monitored with `up{job="grafana"}` in Prometheus.
+- Executed Compose rendering, Prometheus configuration validation, Prometheus restart, Prometheus query and target API checks, container status inspection, Git diff checks, and whitespace validation.
+
+### Attempted Methods
+- Read the project protocol and existing report before implementation. The three referenced planning documents under `docs/` are not present.
+- Used Grafana's native `/metrics` endpoint because Prometheus cannot ingest the JSON response from `/api/health` as metrics; the generated `up` series provides the health signal.
+- The built-in patch helper failed before reading files because bubblewrap could not create loopback (`RTM_NEWADDR: Operation not permitted`). Exact replacements were then applied with `sed` in the approved external environment.
+
+### Issues & Blockers
+- No unresolved blockers remain. Prometheus reports the Grafana target at `http://grafana:3000/metrics` as healthy with a one-second scrape interval, and `up{job="grafana"}` returns `1`.
