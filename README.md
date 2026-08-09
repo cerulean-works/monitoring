@@ -1,6 +1,6 @@
 # Monitoring Stack
 
-A Docker Compose stack for monitoring host and GPU metrics using **Prometheus**, **Grafana**, **NVIDIA DCGM Exporter**, and **Node Exporter**.
+A Docker Compose stack for host, GPU, and vLLM metrics plus systemd logs using **Prometheus**, **Grafana**, **Loki**, **Grafana Alloy**, **NVIDIA DCGM Exporter**, and **Node Exporter**.
 
 ## Services & Endpoints
 
@@ -10,8 +10,10 @@ A Docker Compose stack for monitoring host and GPU metrics using **Prometheus**,
 | **Grafana** | `http://localhost:3000` | Metrics visualization (`admin` / `admin`) |
 | **DCGM Exporter** | `http://localhost:9400/metrics` | NVIDIA GPU metrics exporter |
 | **Node Exporter** | `http://localhost:9100/metrics` | Host hardware & OS metrics exporter (via `/proc`, `/sys`, `/` mounts) |
+| **Loki** | `http://localhost:3100/ready` | Local log storage |
+| **Grafana Alloy** | Compose service only | Reads systemd journals and sends logs to Loki |
 
-*Note: All services run in `network_mode: host`.*
+*Note: Metrics services and Grafana use host networking; Loki and Alloy use the Compose network. Loki is published only on host loopback.*
 
 ## Prerequisites
 
@@ -49,6 +51,29 @@ docker compose logs -f
 
 # Stop stack
 docker compose down
+```
+
+## vLLM and systemd logs
+
+Prometheus scrapes the vLLM `/metrics` endpoint configured by the `vllm-qwen` job in `prometheus/prometheus.yml`. Update that target for your vLLM server.
+
+Alloy reads persistent and runtime journals and labels entries with their systemd `unit`. In Grafana, open **Explore**, choose **Loki**, then query:
+
+```logql
+{job="systemd-journal"}
+{job="systemd-journal", unit="vllm.service"}
+{job="systemd-journal", unit=~"vllm.*"} |= "ERROR"
+```
+
+Replace `vllm.service` with the actual service unit. If vLLM runs in Docker, configure Docker's `journald` logging driver or add a Docker log source to Alloy.
+
+Verify the pipeline with:
+
+```bash
+docker compose config
+docker compose up -d
+curl -fsS http://localhost:3100/ready
+docker compose logs alloy loki
 ```
 
 ## Grafana Startup Notes & Optimizations

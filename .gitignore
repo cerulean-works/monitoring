@@ -17,6 +17,7 @@ grafana_data/
 # Logs
 *.log
 logs/
+loki/data/
 
 # Operating System Files
 .DS_Store

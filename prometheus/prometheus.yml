@@ -29,3 +29,10 @@ scrape_configs:
     static_configs:
       - targets:
           - "localhost:9400"
+
+  - job_name: 'vllm-qwen'
+    metrics_path: '/metrics'
+    scrape_interval: 1s
+    static_configs:
+      - targets:
+        - "100.81.55.101:8000"
