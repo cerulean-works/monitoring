@@ -1,0 +1,7 @@
+# Copy this file to vllm.yml and replace the target with your vLLM endpoint.
+# If vLLM runs on the Docker host, it must listen on an address reachable from
+# containers, such as 0.0.0.0, rather than only on 127.0.0.1.
+- targets:
+    - "host.docker.internal:8000"
+  labels:
+    service: "vllm"
