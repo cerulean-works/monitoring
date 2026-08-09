@@ -2,7 +2,6 @@ services:
   dcgm-exporter:
     container_name: dcgm-exporter
     image: nvcr.io/nvidia/k8s/dcgm-exporter:2.1.4-2.3.1-ubuntu20.04
-    network_mode: host
     cap_add:
       - SYS_ADMIN
     command:
@@ -22,7 +21,6 @@ services:
   node-exporter:
     container_name: node-exporter
     image: prom/node-exporter:v1.12.1
-    network_mode: host
     pid: host
     command:
       - '--path.procfs=/host/proc'
@@ -38,7 +36,10 @@ services:
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.13.2
-    network_mode: host
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/targets:/etc/prometheus/targets:ro
@@ -48,7 +49,8 @@ services:
   grafana:
     container_name: grafana
     image: grafana/grafana:13.1.2
-    network_mode: host
+    ports:
+      - "3000:3000"
     environment:
       - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
       - GF_ANALYTICS_REPORTING_ENABLED=false
@@ -62,9 +64,13 @@ services:
       retries: 15
       start_period: 2s
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
     restart: unless-stopped
 
   loki:
@@ -76,8 +82,6 @@ services:
     volumes:
       - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
-    ports:
-      - "127.0.0.1:3100:3100"
 
   alloy:
     image: grafana/alloy:v1.11.3

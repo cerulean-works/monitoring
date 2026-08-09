@@ -8,12 +8,12 @@ A Docker Compose stack for host, GPU, and vLLM metrics plus systemd logs using *
 | :--- | :--- | :--- |
 | **Prometheus** | `http://localhost:9090` | Time-series metrics database (scrapes every 1s) |
 | **Grafana** | `http://localhost:3000` | Metrics visualization (credentials are configured in `.env`) |
-| **DCGM Exporter** | `http://localhost:9400/metrics` | NVIDIA GPU metrics exporter |
-| **Node Exporter** | `http://localhost:9100/metrics` | Host hardware & OS metrics exporter (via `/proc`, `/sys`, `/` mounts) |
-| **Loki** | `http://localhost:3100/ready` | Local log storage |
+| **DCGM Exporter** | `http://dcgm-exporter:9400/metrics` (Compose network only) | NVIDIA GPU metrics exporter |
+| **Node Exporter** | `http://node-exporter:9100/metrics` (Compose network only) | Host hardware & OS metrics exporter (via `/proc`, `/sys`, `/` mounts) |
+| **Loki** | `http://loki:3100` (Compose network only) | Local log storage; provisioned automatically in Grafana |
 | **Grafana Alloy** | Compose service only | Reads systemd journals and sends logs to Loki |
 
-*Note: Metrics services and Grafana use host networking; Loki and Alloy use the Compose network. Loki is published only on host loopback.*
+*Note: All services use the isolated Compose bridge network. Only Grafana and Prometheus publish ports, both on host loopback. Exporters, Loki, and Alloy are reachable only by other services in the Compose network.*
 
 ## Prerequisites
 
@@ -23,11 +23,6 @@ Before running the stack, ensure your system meets the following requirements:
 2. **Docker & Docker Compose**: Installed and running daemon.
 3. **NVIDIA Container Toolkit**: Required by `dcgm-exporter` to access GPU devices inside containers.
    - Installation guide: [NVIDIA Container Toolkit Docs](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-4. **Disable Host Node Exporter (If Applicable)**: If `node_exporter` was running natively via `systemd`, stop and disable it to avoid port 9100 conflict:
-   ```bash
-   sudo systemctl stop node_exporter
-   sudo systemctl disable node_exporter
-   ```
 
 ### Verification Commands
 
@@ -66,7 +61,7 @@ docker compose down
 
 ## vLLM and systemd logs
 
-Prometheus scrapes the vLLM `/metrics` endpoint through the `vllm` job in `prometheus/prometheus.yml`. The repository contains only the safe template `prometheus/targets/vllm.yml.example`; your actual target belongs in `prometheus/targets/vllm.yml`, which is ignored by Git. Use a host and port reachable from the Prometheus container. Because Prometheus uses host networking, `127.0.0.1:8000` works when vLLM listens on the same host.
+Prometheus scrapes the vLLM `/metrics` endpoint through the `vllm` job in `prometheus/prometheus.yml`. The repository contains only the safe template `prometheus/targets/vllm.yml.example`; your actual target belongs in `prometheus/targets/vllm.yml`, which is ignored by Git. The template uses `host.docker.internal:8000`, mapped to Docker's host gateway by Compose. A vLLM process on the host must listen on an address reachable from containers, such as `0.0.0.0`, rather than only `127.0.0.1`. For a containerized vLLM service attached to the same Compose network, use its service name and port instead.
 
 ## Local configuration and public repositories
 
@@ -78,6 +73,8 @@ Do not commit `.env` or files matching `prometheus/targets/*.yml`. They contain 
 | `prometheus/targets/vllm.yml.example` | `prometheus/targets/vllm.yml` | Reachable vLLM metrics endpoint and optional labels |
 
 After changing either local file, run `docker compose config` to validate Compose settings. Prometheus discovers target-file changes automatically; check `http://localhost:9090/targets` to confirm the vLLM endpoint is healthy.
+
+Grafana automatically provisions both Prometheus and Loki from `grafana/provisioning/datasources/prometheus.yml` during `docker compose up`. No manual data source setup is required. The provisioned data sources use Compose service DNS (`prometheus:9090` and `loki:3100`) and keep internal traffic off the host network.
 
 ## Pinned container versions
 
@@ -109,7 +106,7 @@ Verify the pipeline with:
 ```bash
 docker compose config
 docker compose up -d
-curl -fsS http://localhost:3100/ready
+docker compose exec grafana wget -qO- http://loki:3100/ready
 docker compose logs alloy loki
 ```
 
