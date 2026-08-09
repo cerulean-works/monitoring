@@ -103,3 +103,19 @@
 ### Issues & Blockers
 - The removed worktree contained uncommitted README and historical report differences. Those worktree-only document differences were discarded as part of the requested forced cleanup.
 - No unresolved cleanup blockers remain.
+
+## [2026-08-09 17:12] Task Record
+
+### Task Description
+- Resolve commit-message generation failure reporting unsupported Git extension `worktreeconfig` after Codex worktree cleanup.
+
+### Actions Taken
+- Inspected registered worktrees, `.git/config`, possible `config.worktree` files, and effective repository-format settings.
+- Removed the obsolete `extensions.worktreeConfig` setting with `git config --unset`.
+- Verified repository format remains version 0, no Git extensions remain, the repository is a valid work tree, and Git status works normally.
+
+### Attempted Methods
+- Confirmed the worktree directory cleanup alone did not remove the repository-format extension stored in the main Git config.
+
+### Issues & Blockers
+- No unresolved repository-format blocker remains. The unsupported worktree configuration extension is no longer present.
