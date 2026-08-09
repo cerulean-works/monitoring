@@ -23,6 +23,10 @@ Before running the stack, ensure your system meets the following requirements:
 2. **Docker & Docker Compose**: Installed and running daemon.
 3. **NVIDIA Container Toolkit**: Required by `dcgm-exporter` to access GPU devices inside containers.
    - Installation guide: [NVIDIA Container Toolkit Docs](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+4. **systemd-managed vLLM (for the dashboard log panel)**: Run vLLM as either a system service or a user service, and include `vllm` in the unit name (for example, `vllm.service` or `vllm-qwen.service`). The dashboard discovers matching units automatically and does not require a fixed unit name. Metrics monitoring still works if vLLM is started another way, but the systemd log panel will have no matching logs.
+   - System service: install the unit under `/etc/systemd/system/`, then enable and start it with `sudo systemctl enable --now <unit>.service`.
+   - User service: install the unit under `~/.config/systemd/user/`, then enable and start it with `systemctl --user enable --now <unit>.service`. On a headless host where the service must start at boot and continue after logout, enable lingering with `sudo loginctl enable-linger "$USER"`.
+   - Alloy reads the host journals mounted from `/var/log/journal` and `/run/log/journal`. Ensure journald is retaining the vLLM service logs in one of those locations.
 
 ### Verification Commands
 
@@ -91,7 +95,7 @@ Every image in `docker-compose.yaml` uses an explicit version tag; no service us
 
 Upgrade versions deliberately: change one tag at a time, run `docker compose pull <service>`, start the stack, and verify health before committing the new tag.
 
-Alloy reads persistent and runtime journals and labels entries with their systemd `unit`. In Grafana, open **Explore**, choose **Loki**, then query:
+Alloy reads persistent and runtime journals and labels entries from both system services and user services with their systemd `unit`. The vLLM dashboard's **Log unit** selector automatically lists unit names containing `vllm` and selects all matches by default. In Grafana, open **Explore**, choose **Loki**, then query:
 
 ```logql
 {job="systemd-journal"}

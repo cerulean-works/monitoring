@@ -137,3 +137,26 @@
 
 ### Issues & Blockers
 - No unresolved blockers remain. Prometheus reports the Grafana target at `http://grafana:3000/metrics` as healthy with a one-second scrape interval, and `up{job="grafana"}` returns `1`.
+
+## [2026-08-09 17:52] Task Record
+
+### Task Description
+- Remove the vLLM dashboard's dependency on the hard-coded `vllm-qwen.service` unit name and document system and user systemd prerequisites for vLLM log collection.
+
+### Actions Taken
+- Modified `grafana/dashboards/vllm-comprehensive.json` so the log unit variable filters case-insensitively for unit names containing `vllm`, defaults to all matches, supports multiple matching units, and uses a regex Loki matcher.
+- Modified `alloy/config.alloy` to map both `_SYSTEMD_UNIT` and `_SYSTEMD_USER_UNIT` journal fields into the common `unit` label without allowing an absent field to overwrite a populated value.
+- Formatted `alloy/config.alloy` with the pinned Alloy 1.11.3 formatter.
+- Modified `README.md` prerequisites to document system service and user service setup, the required `vllm` unit-name convention, lingering for headless user services, mounted journal locations, and the distinction between metrics and log-panel requirements.
+- Restarted Alloy and verified its configuration loaded successfully.
+- Verified through the authenticated local Grafana API that the provisioned dashboard contains the dynamic unit filter, all-unit default, and regex log query.
+- Executed JSON parsing, Compose rendering, Alloy formatting and validation, Git whitespace checks, residual hard-coded query scans, service status inspection, and Alloy startup log inspection.
+
+### Attempted Methods
+- Read the project protocol and existing report before implementation. The three referenced planning documents under `docs/` are not present.
+- The built-in patch helper failed before reading files because bubblewrap could not create loopback (`RTM_NEWADDR: Operation not permitted`). The exact patches were applied through the approved external execution environment.
+- The initial Alloy format check reported that the existing file was not in canonical format. Running the formatter from the pinned Alloy image corrected indentation and the final format and validation checks passed.
+- Changed the dashboard variable filter from inline case-insensitive regex syntax to Grafana's slash-delimited `/.../i` form before runtime verification.
+
+### Issues & Blockers
+- No unresolved blockers remain. Alloy restarted cleanly, Grafana loaded the updated dashboard, and both system and user systemd unit journal fields now feed the shared `unit` label.
