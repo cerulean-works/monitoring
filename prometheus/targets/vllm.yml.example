@@ -1,0 +1,5 @@
+# Copy this file to vllm.yml and replace the target with your vLLM endpoint.
+- targets:
+    - "127.0.0.1:8000"
+  labels:
+    service: "vllm"

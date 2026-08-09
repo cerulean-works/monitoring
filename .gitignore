@@ -2,6 +2,7 @@
 .env
 .env.*
 *.env
+!.env.example
 *.pem
 *.key
 *.crt
@@ -18,6 +19,7 @@ grafana_data/
 *.log
 logs/
 loki/data/
+prometheus/targets/*.yml
 
 # Operating System Files
 .DS_Store

@@ -21,7 +21,7 @@ services:
 
   node-exporter:
     container_name: node-exporter
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.12.1
     network_mode: host
     pid: host
     command:
@@ -37,21 +37,24 @@ services:
 
   prometheus:
     container_name: prometheus
-    image: prom/prometheus
+    image: prom/prometheus:v3.13.2
     network_mode: host
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/targets:/etc/prometheus/targets:ro
       - prometheus-data:/prometheus
     restart: unless-stopped
 
   grafana:
     container_name: grafana
-    image: grafana/grafana
+    image: grafana/grafana:13.1.2
     network_mode: host
     environment:
       - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:?Copy .env.example to .env and set GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Copy .env.example to .env and set GRAFANA_ADMIN_PASSWORD}
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider http://localhost:3000/api/health || exit 1" ]
       interval: 2s

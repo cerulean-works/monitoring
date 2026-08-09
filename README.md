@@ -7,7 +7,7 @@ A Docker Compose stack for host, GPU, and vLLM metrics plus systemd logs using *
 | Service | Endpoint | Description |
 | :--- | :--- | :--- |
 | **Prometheus** | `http://localhost:9090` | Time-series metrics database (scrapes every 1s) |
-| **Grafana** | `http://localhost:3000` | Metrics visualization (`admin` / `admin`) |
+| **Grafana** | `http://localhost:3000` | Metrics visualization (credentials are configured in `.env`) |
 | **DCGM Exporter** | `http://localhost:9400/metrics` | NVIDIA GPU metrics exporter |
 | **Node Exporter** | `http://localhost:9100/metrics` | Host hardware & OS metrics exporter (via `/proc`, `/sys`, `/` mounts) |
 | **Loki** | `http://localhost:3100/ready` | Local log storage |
@@ -42,6 +42,17 @@ docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
 ## Quick Start
 
 ```bash
+# Create local configuration files (these files are ignored by Git)
+cp .env.example .env
+cp prometheus/targets/vllm.yml.example prometheus/targets/vllm.yml
+
+# Edit the Grafana credentials and vLLM target before starting
+${EDITOR:-vi} .env
+${EDITOR:-vi} prometheus/targets/vllm.yml
+
+# Validate the resolved configuration
+docker compose config
+
 # Start stack
 docker compose up -d
 
@@ -55,7 +66,33 @@ docker compose down
 
 ## vLLM and systemd logs
 
-Prometheus scrapes the vLLM `/metrics` endpoint configured by the `vllm-qwen` job in `prometheus/prometheus.yml`. Update that target for your vLLM server.
+Prometheus scrapes the vLLM `/metrics` endpoint through the `vllm` job in `prometheus/prometheus.yml`. The repository contains only the safe template `prometheus/targets/vllm.yml.example`; your actual target belongs in `prometheus/targets/vllm.yml`, which is ignored by Git. Use a host and port reachable from the Prometheus container. Because Prometheus uses host networking, `127.0.0.1:8000` works when vLLM listens on the same host.
+
+## Local configuration and public repositories
+
+Do not commit `.env` or files matching `prometheus/targets/*.yml`. They contain deployment-specific values and are intentionally excluded by `.gitignore`. The committed templates are:
+
+| Template | Local file | Configure |
+| :--- | :--- | :--- |
+| `.env.example` | `.env` | Grafana administrator username and a strong password |
+| `prometheus/targets/vllm.yml.example` | `prometheus/targets/vllm.yml` | Reachable vLLM metrics endpoint and optional labels |
+
+After changing either local file, run `docker compose config` to validate Compose settings. Prometheus discovers target-file changes automatically; check `http://localhost:9090/targets` to confirm the vLLM endpoint is healthy.
+
+## Pinned container versions
+
+Every image in `docker-compose.yaml` uses an explicit version tag; no service uses `latest` or an implicit default tag. This prevents routine upstream releases from silently changing the stack during `docker compose pull`.
+
+| Service | Image |
+| :--- | :--- |
+| DCGM Exporter | `nvcr.io/nvidia/k8s/dcgm-exporter:2.1.4-2.3.1-ubuntu20.04` |
+| Node Exporter | `prom/node-exporter:v1.12.1` |
+| Prometheus | `prom/prometheus:v3.13.2` |
+| Grafana | `grafana/grafana:13.1.2` |
+| Loki | `grafana/loki:3.7.0` |
+| Alloy | `grafana/alloy:v1.11.3` |
+
+Upgrade versions deliberately: change one tag at a time, run `docker compose pull <service>`, start the stack, and verify health before committing the new tag.
 
 Alloy reads persistent and runtime journals and labels entries with their systemd `unit`. In Grafana, open **Explore**, choose **Loki**, then query:
 
@@ -101,6 +138,7 @@ To accelerate Grafana's startup process and provide status visibility, the follo
 
 ```text
 monitoring/
+├── .env.example
 ├── docker-compose.yaml
 ├── .gitignore
 ├── README.md
@@ -113,6 +151,12 @@ monitoring/
 │       │   └── default.yml
 │       └── datasources/
 │           └── prometheus.yml
+├── alloy/
+│   └── config.alloy
+├── loki/
+│   └── loki-config.yaml
 └── prometheus/
-    └── prometheus.yml
+    ├── prometheus.yml
+    └── targets/
+        └── vllm.yml.example
 ```
