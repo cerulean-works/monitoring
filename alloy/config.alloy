@@ -37,6 +37,12 @@ loki.relabel "journal" {
 	}
 
 	rule {
+		source_labels = ["unit"]
+		action        = "keep"
+		regex         = "(?i).*vllm.*"
+	}
+
+	rule {
 		source_labels = ["__journal_priority_keyword"]
 		target_label  = "level"
 	}

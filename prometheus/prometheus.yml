@@ -6,6 +6,10 @@ global:
   external_labels:
     monitor: 'codelab-monitor'
 
+# GPU mode mounts its additional scrape configuration here.
+scrape_config_files:
+  - '/etc/prometheus/optional/*.yml'
+
 # A scrape configuration containing exactly one endpoint to scrape:
 # Here it's Prometheus itself.
 scrape_configs:
@@ -24,11 +28,11 @@ scrape_configs:
       - targets:
           - "node-exporter:9100"
 
-  - job_name: "dcgm_exporter"
+  - job_name: "process_exporter"
     scrape_interval: 1s
     static_configs:
       - targets:
-          - "dcgm-exporter:9400"
+          - "process-exporter:9256"
 
   - job_name: "grafana"
     metrics_path: "/metrics"

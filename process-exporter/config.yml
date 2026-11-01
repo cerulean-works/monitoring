@@ -1,0 +1,5 @@
+# Group processes by process name without adding PIDs or command lines to labels.
+process_names:
+  - name: "{{.Comm}}"
+    cmdline:
+      - '.+'

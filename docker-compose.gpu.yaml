@@ -1,0 +1,23 @@
+services:
+  dcgm-exporter:
+    container_name: dcgm-exporter
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:2.1.4-2.3.1-ubuntu20.04
+    cap_add:
+      - SYS_ADMIN
+    command:
+      - "-f"
+      - "/etc/dcgm-exporter/dcp-metrics-included.csv"
+      - "-c"
+      - "1000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    restart: unless-stopped
+
+  prometheus:
+    volumes:
+      - ./prometheus/gpu.yml:/etc/prometheus/optional/gpu.yml:ro
