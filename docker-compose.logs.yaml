@@ -13,7 +13,7 @@ services:
       - -config.file=/etc/loki/local-config.yaml
     volumes:
       - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
-      - "${LOKI_DATA_DIR:-loki-data}:/loki"
+      - "${LOKI_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}loki-data}:/loki"
 
   alloy:
     image: grafana/alloy:v1.11.3
@@ -29,7 +29,7 @@ services:
       - /etc/machine-id:/etc/machine-id:ro
       - /var/log/journal:/var/log/journal:ro
       - /run/log/journal:/run/log/journal:ro
-      - "${ALLOY_DATA_DIR:-alloy-data}:/var/lib/alloy/data"
+      - "${ALLOY_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}alloy-data}:/var/lib/alloy/data"
     depends_on:
       - loki
 

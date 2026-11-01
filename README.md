@@ -202,21 +202,32 @@ The following settings work in `.env` or in the environment of the process execu
 | Variable | Default | Container data directory |
 | :--- | :--- | :--- |
 | `PROMETHEUS_RETENTION_TIME` | `180d` | Retention duration |
+| `MONITORING_DATA_DIR` | Unset; retain named volumes | Common host parent directory |
 | `PROMETHEUS_DATA_DIR` | Named volume `prometheus-data` | `/prometheus` |
 | `GRAFANA_DATA_DIR` | Named volume `grafana-storage` | `/var/lib/grafana` |
 | `LOKI_DATA_DIR` | Named volume `loki-data` | `/loki` |
 | `ALLOY_DATA_DIR` | Named volume `alloy-data` | `/var/lib/alloy/data` |
 
-Leave a data-directory variable unset or empty to keep using the existing named volume. To choose a physical location, set it to an **absolute host path**. Loki and Alloy paths are used when log collection is enabled. On Docker Desktop or OrbStack, the Docker engine must be able to access the selected host directories.
+Set **`MONITORING_DATA_DIR=/data`** to store all service data under one absolute host parent directory:
+
+```text
+/data/
+├── prometheus-data/
+├── grafana-storage/
+├── loki-data/        # when log collection is enabled
+└── alloy-data/       # when log collection is enabled
+```
+
+Each service resolves its storage in this order: a nonempty per-service `*_DATA_DIR` override, its subdirectory under a nonempty `MONITORING_DATA_DIR`, or its original named volume if both settings are unset/empty. For example, `PROMETHEUS_DATA_DIR=/fast-disk/prometheus` overrides only Prometheus while the other services continue using `/data`. Clear old per-service overrides if all data should follow the parent directory. On Docker Desktop or OrbStack, the Docker engine must be able to access the selected host directories.
 
 Prepare writable directories before selecting them. For the pinned images, the following Linux commands create directories owned by the corresponding service users:
 
 ```bash
-sudo install -d -m 0750 -o 65534 -g 65534 /srv/monitoring-data/prometheus
-sudo install -d -m 0750 -o 472 -g 0 /srv/monitoring-data/grafana
+sudo install -d -m 0750 -o 65534 -g 65534 /data/prometheus-data
+sudo install -d -m 0750 -o 472 -g 0 /data/grafana-storage
 # Only needed when log collection is enabled
-sudo install -d -m 0750 -o 10001 -g 0 /srv/monitoring-data/loki
-sudo install -d -m 0750 -o 0 -g 0 /srv/monitoring-data/alloy
+sudo install -d -m 0750 -o 10001 -g 0 /data/loki-data
+sudo install -d -m 0750 -o 0 -g 0 /data/alloy-data
 ```
 
 For a new deployment with environment variables only, set the Grafana credentials and desired storage settings, then start the stack:
@@ -225,11 +236,7 @@ For a new deployment with environment variables only, set the Grafana credential
 export GRAFANA_ADMIN_USER='admin'
 export GRAFANA_ADMIN_PASSWORD='replace-with-a-strong-password'
 export PROMETHEUS_RETENTION_TIME=180d
-export PROMETHEUS_DATA_DIR=/srv/monitoring-data/prometheus
-export GRAFANA_DATA_DIR=/srv/monitoring-data/grafana
-# Optional log storage, when docker-compose.logs.yaml is selected
-export LOKI_DATA_DIR=/srv/monitoring-data/loki
-export ALLOY_DATA_DIR=/srv/monitoring-data/alloy
+export MONITORING_DATA_DIR=/data
 
 docker compose config --quiet
 docker compose up -d
@@ -239,7 +246,7 @@ Changing `PROMETHEUS_RETENTION_TIME` requires `docker compose up -d` to recreate
 
 ### Moving existing history
 
-Changing a data path selects different storage; it does **not** copy the old volume. For an existing deployment, stop the stack with its current storage settings before changing the variables:
+Changing the parent or a per-service data path selects different storage; it does **not** copy the old volume. For an existing deployment, stop the stack with its current storage settings before changing the variables:
 
 ```bash
 docker compose down
@@ -250,7 +257,7 @@ Prepare the destination directories as above. To move Prometheus history from th
 ```bash
 docker run --rm --user 0:0 \
   --mount type=volume,source=prometheus-data,target=/from,readonly \
-  --mount type=bind,source=/srv/monitoring-data/prometheus,target=/to \
+  --mount type=bind,source=/data/prometheus-data,target=/to \
   --entrypoint /bin/sh prom/prometheus:v3.13.2 \
   -c 'test -z "$(ls -A /to)" && cp -a /from/. /to/'
 ```

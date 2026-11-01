@@ -190,3 +190,47 @@
 
 ### Issues & Blockers
 - No commit-preparation blockers were found. The runtime validation boundaries documented in the preceding task records remain unchanged.
+
+## [2026-11-01 20:34] Task Record
+
+### Task Description
+- Allow one environment variable to select a parent directory, such as `/data`, for every service's persistent data.
+
+### Actions Taken
+- Modified `docker-compose.yaml` and `docker-compose.logs.yaml` to derive storage from `MONITORING_DATA_DIR` when a per-service override is not set. Child directories retain the original store names: `prometheus-data`, `grafana-storage`, `loki-data`, and `alloy-data`.
+- Preserved per-service `*_DATA_DIR` precedence and the existing named-volume fallback when both settings are unset or empty.
+- Modified `.env.example` with the common-parent option and precedence comments.
+- Modified `README.md` with the single-variable export example, derived directory layout, override priority, parent-based ownership commands, and the matching migration destination.
+- Appended this record to `reports/report-codex-gpt-6.md`; no Git commit or production data migration was performed in this task.
+- Read current configuration and reports and consulted official Compose interpolation documentation for nested default and alternative expressions. The referenced `docs/` planning files remain absent.
+- Rendered four GPU/log combinations across nine storage cases, for 36 successful checks: unset/empty settings, `/data`, a trailing slash, a path containing spaces, empty individual overrides, a mixed parent/individual override, and the previous individual-only configuration.
+- Verified an exported parent value overrides a temporary `.env` value, parsed the modified YAML files, and ran `git diff --check` successfully.
+- Adapted the prior isolated storage integration test into `/private/tmp/monitoring-verify-parent.py`, setting only `MONITORING_DATA_DIR` for custom storage. The output is in `/private/tmp/monitoring-verify-parent.log`.
+- Verified actual read-write mounts for all four parent-derived child directories, successful service startup, preserved Prometheus history through offline migration, and retained Prometheus samples, Grafana folder, and Loki log after removing and recreating containers.
+- Removed isolated test containers, volumes, and network and restored ownership for temporary-file cleanup.
+
+### Attempted Methods
+- Used nested Compose interpolation instead of requiring `.env` or an additional startup wrapper, keeping direct environment-variable deployment available.
+- An initial literal-path assertion failed for `/data/` because Compose preserves the resulting double separator in `/data//prometheus-data`. Normalized paths before comparison; all trailing-slash cases then passed without changing the storage semantics.
+
+### Issues & Blockers
+- No unresolved implementation or integration blockers remain.
+- A nonempty per-service override intentionally takes precedence over the common parent. Existing overrides must be cleared when all stores should follow the parent.
+- Changing the parent selects different storage and does not copy existing data automatically. The documented ownership and migration requirements still apply.
+
+## [2026-11-01 20:35] Task Record
+
+### Task Description
+- Prepare the shared data-parent configuration for the requested Git commit.
+
+### Actions Taken
+- Reviewed the five changed files: `.env.example`, `README.md`, `docker-compose.yaml`, `docker-compose.logs.yaml`, and `reports/report-codex-gpt-6.md`.
+- Confirmed the changes are limited to the common parent directory, per-service override priority, existing named-volume compatibility, setup examples, and the associated task record.
+- Executed `git status --short`, staged and unstaged diff summaries and whitespace checks, full application diff review, report inspection, and recent commit-message review.
+- Appended this preparation record to `reports/report-codex-gpt-6.md` for inclusion in the reviewed commit.
+
+### Attempted Methods
+- Used the preceding task's completed 36 configuration checks and isolated Docker persistence test; no application changes required repeating them.
+
+### Issues & Blockers
+- No commit-preparation blockers were found.
