@@ -1,4 +1,25 @@
 services:
+  storage-init:
+    image: prom/prometheus:v3.13.2
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/usr/local/bin/init-storage.sh"]
+    command: []
+    network_mode: none
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - DAC_OVERRIDE
+    environment:
+      INIT_LOG_STORAGE: "false"
+    volumes:
+      - ./scripts/init-storage.sh:/usr/local/bin/init-storage.sh:ro
+      - "${PROMETHEUS_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}prometheus-data}:/prometheus"
+      - "${GRAFANA_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}grafana-storage}:/var/lib/grafana"
+    restart: "no"
+
   node-exporter:
     container_name: node-exporter
     image: prom/node-exporter:v1.12.1
@@ -46,6 +67,9 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/targets:/etc/prometheus/targets:ro
       - "${PROMETHEUS_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}prometheus-data}:/prometheus"
+    depends_on:
+      storage-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   grafana:
@@ -72,7 +96,10 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - "${GRAFANA_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}grafana-storage}:/var/lib/grafana"
     depends_on:
-      - prometheus
+      storage-init:
+        condition: service_completed_successfully
+      prometheus:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

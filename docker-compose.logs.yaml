@@ -1,9 +1,17 @@
 services:
+  storage-init:
+    environment:
+      INIT_LOG_STORAGE: "true"
+    volumes:
+      - "${LOKI_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}loki-data}:/loki"
+      - "${ALLOY_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}alloy-data}:/var/lib/alloy/data"
+
   grafana:
     volumes:
       - ./grafana/provisioning/optional/loki.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
     depends_on:
-      - loki
+      loki:
+        condition: service_started
 
   loki:
     image: grafana/loki:3.7.0
@@ -14,6 +22,9 @@ services:
     volumes:
       - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - "${LOKI_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}loki-data}:/loki"
+    depends_on:
+      storage-init:
+        condition: service_completed_successfully
 
   alloy:
     image: grafana/alloy:v1.11.3
@@ -31,7 +42,10 @@ services:
       - /run/log/journal:/run/log/journal:ro
       - "${ALLOY_DATA_DIR:-${MONITORING_DATA_DIR:+${MONITORING_DATA_DIR}/}alloy-data}:/var/lib/alloy/data"
     depends_on:
-      - loki
+      storage-init:
+        condition: service_completed_successfully
+      loki:
+        condition: service_started
 
 volumes:
   alloy-data:

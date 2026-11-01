@@ -13,6 +13,7 @@ A Docker Compose stack for host and process metrics, optional GPU and vLLM metri
 | **process-exporter** | `http://process-exporter:9256/metrics` (Compose network only) | Host process groups: CPU, memory, disk I/O, threads, and file descriptors |
 | **Loki** (logs enabled only) | `http://loki:3100` (Compose network only) | Local log storage; provisioned automatically in Grafana when enabled |
 | **Grafana Alloy** (logs enabled only) | Compose service only | Reads vLLM systemd journal entries and sends them to Loki |
+| **Storage initialization** | No endpoint; exits after setup | Prepares data directory ownership before storage services start |
 
 *Note: All services use the isolated Compose bridge network. Only Grafana and Prometheus publish ports, both on host loopback. Exporters, Loki, and Alloy are reachable only by other services in the Compose network.*
 
@@ -66,7 +67,7 @@ docker compose logs -f
 docker compose down
 ```
 
-This starts Node Exporter, process-exporter, Prometheus, and Grafana. Open Grafana's **Node Exporter Dashboard** for host metrics or **Process Monitoring** for process-group metrics. DCGM Exporter, its Prometheus scrape job, Loki, and Alloy are absent in this mode; no host journals are mounted or collected. GPU dashboards remain provisioned and show no current GPU data. vLLM metrics panels require a configured vLLM endpoint, and log panels require log collection to be enabled separately.
+This first prepares data storage automatically, then runs Node Exporter, process-exporter, Prometheus, and Grafana. Open Grafana's **Node Exporter Dashboard** for host metrics or **Process Monitoring** for process-group metrics. DCGM Exporter, its Prometheus scrape job, Loki, and Alloy are absent in this mode; no host journals are mounted or collected. GPU dashboards remain provisioned and show no current GPU data. vLLM metrics panels require a configured vLLM endpoint, and log panels require log collection to be enabled separately.
 
 ### With an NVIDIA GPU
 
@@ -123,7 +124,7 @@ docker compose ps
 # Prometheus targets: http://localhost:9090/targets
 ```
 
-The default configuration lists four services. GPU monitoring adds one (`dcgm-exporter`); log collection adds two (`loki` and `alloy`). On the Prometheus targets page, `node_exporter` and `process_exporter` should become healthy in every mode and `dcgm_exporter` should appear only in GPU mode. Grafana's Loki data source appears only when logs are enabled.
+The default configuration lists five services, including the one-shot `storage-init` service, which normally shows `Exited (0)` in `docker compose ps -a`. Four services remain running. GPU monitoring adds one (`dcgm-exporter`); log collection adds two (`loki` and `alloy`). On the Prometheus targets page, `node_exporter` and `process_exporter` should become healthy in every mode and `dcgm_exporter` should appear only in GPU mode. Grafana's Loki data source appears only when logs are enabled.
 
 ## Process monitoring
 
@@ -220,15 +221,9 @@ Set **`MONITORING_DATA_DIR=/data`** to store all service data under one absolute
 
 Each service resolves its storage in this order: a nonempty per-service `*_DATA_DIR` override, its subdirectory under a nonempty `MONITORING_DATA_DIR`, or its original named volume if both settings are unset/empty. For example, `PROMETHEUS_DATA_DIR=/fast-disk/prometheus` overrides only Prometheus while the other services continue using `/data`. Clear old per-service overrides if all data should follow the parent directory. On Docker Desktop or OrbStack, the Docker engine must be able to access the selected host directories.
 
-Prepare writable directories before selecting them. For the pinned images, the following Linux commands create directories owned by the corresponding service users:
+**No manual directory initialization is required for a new deployment.** Compose creates missing bind directories, and `storage-init` sets each mounted data directory's owner and owner access before Prometheus, Grafana, Loki, or Alloy starts. It supports both named volumes and configured host directories. Loki and Alloy storage is prepared only when logs are enabled.
 
-```bash
-sudo install -d -m 0750 -o 65534 -g 65534 /data/prometheus-data
-sudo install -d -m 0750 -o 472 -g 0 /data/grafana-storage
-# Only needed when log collection is enabled
-sudo install -d -m 0750 -o 10001 -g 0 /data/loki-data
-sudo install -d -m 0750 -o 0 -g 0 /data/alloy-data
-```
+Initialization changes only the mounted directory itself; it does not recursively change ownership, erase files, or move existing data. It runs without networking using the already-pinned Prometheus image's shell. If the host filesystem rejects the required ownership changes, initialization fails and the dependent storage services do not start; inspect `docker compose logs storage-init`. Existing files must already have ownership appropriate to their service, as preserved by the migration procedure below.
 
 For a new deployment with environment variables only, set the Grafana credentials and desired storage settings, then start the stack:
 
@@ -252,7 +247,14 @@ Changing the parent or a per-service data path selects different storage; it doe
 docker compose down
 ```
 
-Prepare the destination directories as above. To move Prometheus history from the default volume, confirm `docker volume inspect prometheus-data` succeeds, then copy it to an empty destination while Prometheus is stopped:
+Select the new storage location and prepare empty destinations without starting the storage services:
+
+```bash
+export MONITORING_DATA_DIR=/data
+docker compose run --rm --no-deps storage-init
+```
+
+To move Prometheus history from the default volume, confirm `docker volume inspect prometheus-data` succeeds, then copy it to the empty destination while Prometheus is stopped:
 
 ```bash
 docker run --rm --user 0:0 \
@@ -276,6 +278,7 @@ Every image in `docker-compose.yaml`, `docker-compose.gpu.yaml`, and `docker-com
 | Node Exporter | `prom/node-exporter:v1.12.1` |
 | process-exporter | `ncabatoff/process-exporter:0.8.7` |
 | Prometheus | `prom/prometheus:v3.13.2` |
+| Storage initialization | `prom/prometheus:v3.13.2` (shell entrypoint) |
 | Grafana | `grafana/grafana:13.1.2` |
 | Loki | `grafana/loki:3.7.0` |
 | Alloy | `grafana/alloy:v1.11.3` |
@@ -354,6 +357,8 @@ monitoring/
 │   └── config.alloy
 ├── loki/
 │   └── loki-config.yaml
+├── scripts/
+│   └── init-storage.sh
 ├── process-exporter/
 │   └── config.yml
 └── prometheus/

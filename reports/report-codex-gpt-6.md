@@ -234,3 +234,72 @@
 
 ### Issues & Blockers
 - No commit-preparation blockers were found.
+
+## [2026-11-01 20:45] Task Record
+
+### Task Description
+- Clarify whether users must create service subdirectories under `/data` before startup.
+
+### Actions Taken
+- Inspected the Compose short-syntax data mounts, configured service users, and README directory ownership commands.
+- Confirmed through official Compose documentation that short-syntax bind mounts create missing source directories automatically.
+- Confirmed the current project has no storage initialization service or startup step that assigns ownership to the different service users. The documented first-run setup creates directories with the required ownership.
+- Appended this record to `reports/report-codex-gpt-6.md`; application configuration and host data directories were unchanged.
+
+### Attempted Methods
+- Distinguished automatic directory creation from writable ownership for Prometheus, Grafana, and optional log services using configuration inspection and official documentation.
+
+### Issues & Blockers
+- No investigation blockers. Automatic directory creation alone does not ensure the non-root services can write their storage directories; the documented ownership setup remains required for a fresh custom data location.
+
+## [2026-11-01 20:55] Task Record
+
+### Task Description
+- Automatically initialize storage directories so users can select a parent directory and start a new deployment without manual directory or ownership commands.
+
+### Actions Taken
+- Added `scripts/init-storage.sh` to set the owner and owner access on the mounted Prometheus and Grafana data directories, plus Loki and Alloy when logs are enabled. The script changes only mount roots and does not recursively modify existing files or copy data.
+- Modified `docker-compose.yaml` with a one-shot `storage-init` service using the existing pinned Prometheus image's shell, root user, no network, read-only root filesystem, and only `CHOWN`, `FOWNER`, and `DAC_OVERRIDE` capabilities. It mounts the same selected data stores as the application services.
+- Modified `docker-compose.yaml` so Prometheus and Grafana require successful initialization before starting.
+- Modified `docker-compose.logs.yaml` to include optional log storage in initialization and require its completion before Loki and Alloy start. Retained Grafana's Loki and Alloy's Loki startup dependencies.
+- Modified `.env.example` to describe automatic directory initialization.
+- Modified `README.md` to remove manual first-run ownership commands, document normal `storage-init` exit status and failure behavior, update service counts and file structure, and retain a separate offline migration procedure for existing data.
+- Appended this record to `reports/report-codex-gpt-6.md`, retaining the preceding question-and-answer record.
+- Read project configuration and historical reports and checked official Compose dependency documentation for `service_completed_successfully`. Referenced planning files under `docs/` remain absent.
+- Ran `sh -n scripts/init-storage.sh` and `git diff --check`; both passed.
+- Rendered all four GPU/log combinations with default, common-parent, mixed override, and empty-value settings. Verified matching initializer/application mounts, optional log initialization, restricted initialization capabilities, successful-completion dependencies, and feature membership for all 16 cases.
+- Ran `/private/tmp/monitoring-verify-init.py` in isolated Docker resources. The successful output is in `/private/tmp/monitoring-verify-init-complete.log`.
+- Verified initialization works with default named volumes and preserves a historical Prometheus sample across restart.
+- Started the full no-GPU/log-enabled stack with a parent directory that did not exist before `up`. Verified initialization exits successfully before each storage application starts, all services become healthy, and every service UID/GID can write its selected data directory.
+- Added a nested test file with distinct ownership and restrictive mode, then reran initialization. Verified its reported owner, permissions, and content hash remain unchanged.
+- Removed and recreated the stack and verified historical Prometheus data, a Grafana folder, a Loki log, and the nested test marker remain intact.
+- Forced a read-only data mount for initialization and verified the initializer fails and Prometheus is not running, proving failure propagation through Compose dependencies.
+- Confirmed bind-directory contents remain after test container/volume removal and cleaned all test containers, networks, volumes, and temporary data. No `monitoring-init-verify` resources remain.
+
+### Attempted Methods
+- Used a shared one-shot initialization service rather than changing long-running application users or requiring a host-side startup wrapper. Named-volume defaults, common-parent selection, and per-service overrides remain supported.
+- Limited initialization to mounted directory roots so normal repeated starts do not scan or rewrite a potentially large existing TSDB or log store.
+- An initial ownership assertion through a parent bind mount reported `0:0` for all four directories in the OrbStack environment, despite successful non-root application startup. Replaced that host-view assertion with actual write tests running as each service UID/GID. All four write tests passed, as did repeated-start and data-integrity checks.
+
+### Issues & Blockers
+- No unresolved implementation or integration blockers remain.
+- The host filesystem must permit the ownership and access changes. Initialization errors stop dependent storage services and are visible in `docker compose logs storage-init`.
+- Existing nested files retain their permissions and ownership; initialization does not repair ownership recursively or migrate data between storage locations.
+- Runtime tests used the local OrbStack Linux VM and empty journal fixtures. Actual Linux host journals and NVIDIA hardware were not exercised by this initialization task.
+
+## [2026-11-01 20:56] Task Record
+
+### Task Description
+- Prepare automatic storage initialization for the requested Git commit.
+
+### Actions Taken
+- Reviewed `.env.example`, `README.md`, `docker-compose.yaml`, `docker-compose.logs.yaml`, `scripts/init-storage.sh`, and `reports/report-codex-gpt-6.md`.
+- Confirmed the commit scope covers directory initialization, successful-completion dependencies, optional log storage, setup documentation, and the associated records.
+- Executed Git status, staged and unstaged diff summaries and whitespace checks, application diff and script review, historical report inspection, and recent commit-message review.
+- Appended this preparation record to `reports/report-codex-gpt-6.md` for inclusion in the reviewed commit.
+
+### Attempted Methods
+- Used the initialization task's completed configuration, syntax, startup-order, data-integrity, and failure-propagation checks; no application changes required repeating runtime tests.
+
+### Issues & Blockers
+- No commit-preparation blockers were found.
