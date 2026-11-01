@@ -59,8 +59,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-180d}'
-    ports:
-      - "9090:9090"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -75,8 +73,6 @@ services:
   grafana:
     container_name: grafana
     image: grafana/grafana:13.1.2
-    ports:
-      - "3000:3000"
     environment:
       - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
       - GF_ANALYTICS_REPORTING_ENABLED=false
