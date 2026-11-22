@@ -6,7 +6,7 @@ A Docker Compose stack for host and process metrics, optional GPU and vLLM metri
 
 | Service | Endpoint | Description |
 | :--- | :--- | :--- |
-| **Prometheus** | `http://localhost:9090` | Time-series metrics database (scrapes every 1s) |
+| **Prometheus** | `http://localhost:9090` | Time-series metrics database (scrapes every 10s) |
 | **Grafana** | `http://localhost:3000` | Metrics visualization (credentials are configured in `.env`) |
 | **DCGM Exporter** (GPU mode only) | `http://dcgm-exporter:9400/metrics` (Compose network only) | NVIDIA GPU metrics exporter |
 | **Node Exporter** | `http://node-exporter:9100/metrics` (Compose network only) | Host hardware & OS metrics exporter (via `/proc`, `/sys`, `/` mounts) |
